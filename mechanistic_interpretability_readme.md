@@ -208,7 +208,6 @@ fig.show()
 ---
 
 ## Advanced Implementations in Mechanistic Interpretability
-
 This section presents advanced code examples and practical implementations relevant to mechanistic interpretability and model optimization.
 
 ### 1. Efficient Fine-Tuning Techniques
