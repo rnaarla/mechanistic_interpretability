@@ -211,8 +211,6 @@ fig.show()
 
 This section presents advanced code examples and practical implementations relevant to mechanistic interpretability and model optimization.
 
----
-
 ### 1. Efficient Fine-Tuning Techniques
 
 #### LoRA (Low-Rank Adaptation) Example Using PEFT Library
