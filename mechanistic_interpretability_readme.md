@@ -207,6 +207,139 @@ fig.show()
 
 ---
 
+## Advanced Implementations in Mechanistic Interpretability
+
+This section presents advanced code examples and practical implementations relevant to mechanistic interpretability and model optimization.
+
+---
+
+### 1. Efficient Fine-Tuning Techniques
+
+#### LoRA (Low-Rank Adaptation) Example Using PEFT Library
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import get_peft_model, LoraConfig, TaskType
+
+model_name = "gpt2"
+model = AutoModelForCausalLM.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+lora_config = LoraConfig(
+    task_type=TaskType.CAUSAL_LM,
+    inference_mode=False,
+    r=8,              # Low-rank dimension
+    lora_alpha=32,
+    lora_dropout=0.1,
+)
+
+model = get_peft_model(model, lora_config)
+
+inputs = tokenizer("Hello, how are you?", return_tensors="pt")
+outputs = model(**inputs)
+print(outputs.logits.shape)
+```
+
+---
+
+### 2. Performance and Scalability
+
+#### Using FlashAttention (PyTorch Integration Snippet)
+
+```python
+# FlashAttention is often integrated at a lower level, but PyTorch users can enable it via:
+import torch
+from flash_attn.flash_attn_interface import flash_attn_unpadded_qkvpacked_func
+
+# Example: Using flash attention within custom attention function for speed
+# (Requires flash_attn installed and CUDA environment)
+# Note: Full FlashAttention integration requires specific setup and is often embedded in custom libraries or frameworks.
+```
+
+---
+
+### 3. Automated Circuit Discovery
+
+#### Simple Neuron Clustering Using UMAP and HDBSCAN
+
+```python
+import torch
+import umap
+import hdbscan
+import matplotlib.pyplot as plt
+
+# Assume neuron_activations: Tensor of shape (num_samples, num_neurons)
+neuron_activations = torch.randn(1000, 768).numpy()
+
+# Dimensionality reduction with UMAP
+embedding = umap.UMAP(n_neighbors=15, min_dist=0.1).fit_transform(neuron_activations.T)
+
+# Clustering with HDBSCAN
+clusterer = hdbscan.HDBSCAN(min_cluster_size=10)
+labels = clusterer.fit_predict(embedding)
+
+plt.scatter(embedding[:, 0], embedding[:, 1], c=labels, cmap='Spectral', s=5)
+plt.title("Neuron Clusters")
+plt.show()
+```
+
+---
+
+### 4. Formal Verification and Hybrid Approaches
+
+#### Using Z3 SMT Solver for Simple Logic Verification
+
+```python
+from z3 import *
+
+# Example: Verify a simple logical property of neuron outputs
+x = Bool('x')
+y = Bool('y')
+
+solver = Solver()
+solver.add(Implies(x, y))
+solver.add(x == True)
+
+if solver.check() == sat:
+    print("Property holds:", solver.model())
+else:
+    print("Property violated")
+```
+
+---
+
+### 5. Expanded Practical Examples
+
+#### Bias Detection via Activation Patching (Simplified Example)
+
+```python
+from transformer_lens import HookedTransformer
+
+model = HookedTransformer.from_pretrained('gpt2-small')
+
+# Define two inputs
+input_biased = model.to_tokens("The doctor said he was tired.")
+input_neutral = model.to_tokens("The person said they were tired.")
+
+# Store activations from biased input
+activations_biased = {}
+
+def save_hook(name):
+    def hook_fn(tensor, hook):
+        activations_biased[name] = tensor.clone()
+    return hook_fn
+
+model.run_with_hooks(input_biased, fwd_hooks=[("blocks.0.attn.hook_attn_result", save_hook("attn_0"))])
+
+# Patch activations in neutral input with biased activations
+def patch_hook(tensor, hook):
+    return activations_biased["attn_0"]
+
+logits_patched = model.run_with_hooks(input_neutral, fwd_hooks=[("blocks.0.attn.hook_attn_result", patch_hook)])
+```
+
+---
+
 ## Further Resources
 
 - [OpenAI Microscope](https://microscope.openai.com/) — Interactive visualization of GPT-2 neurons  
