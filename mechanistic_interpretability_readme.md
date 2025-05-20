@@ -351,7 +351,7 @@ logits_patched = model.run_with_hooks(input_neutral, fwd_hooks=[("blocks.0.attn.
 
 ---
 
-> *“Mechanistic interpretability is the forensic accounting of neural networks — dissecting their inner workings to understand, explain, and control.”*
+> *“Mechanistic interpretability is the forensic analysis of neural networks — dissecting their inner workings to understand, explain, and control.”*
 
 ---
 
