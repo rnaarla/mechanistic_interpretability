@@ -253,53 +253,49 @@ from flash_attn.flash_attn_interface import flash_attn_unpadded_qkvpacked_func
 # Note: Full FlashAttention integration requires specific setup and is often embedded in custom libraries or frameworks.
 
 ### Using FlashAttention (PyTorch Integration Example)
+    
+def flash_attention(q, k, v, causal=False):
+    """
+    q, k, v: Query, Key, Value tensors with shape (batch_size, seq_len, num_heads, head_dim)
+    Assumes q, k, v are unpadded and packed as required by flash_attn_unpadded_qkvpacked_func.
 
-```python
-    import torch
-    from flash_attn.flash_attn_interface import flash_attn_unpadded_qkvpacked_func
+    Returns attention output tensor with shape (batch_size, seq_len, num_heads, head_dim)
+    """
+
+    batch_size, seqlen, num_heads, head_dim = q.shape
+
+    # Pack Q, K, V into one tensor as expected by flash_attn
+    # The expected shape is (batch_size * num_heads, seq_len, 3 * head_dim)
+    qkv = torch.stack([q, k, v], dim=-1)  # shape: (batch_size, seq_len, num_heads, head_dim, 3)
+    qkv = qkv.permute(0, 2, 1, 4, 3)      # (batch_size, num_heads, seq_len, 3, head_dim)
+    qkv = qkv.reshape(batch_size * num_heads, seqlen, 3 * head_dim)  # packed
+
+    # Lengths for each sequence (assuming all equal length here)
+    cu_seqlens = torch.arange(0, (batch_size * num_heads + 1) * seqlen, step=seqlen, device=q.device, dtype=torch.int32)
+
+    max_seqlen = seqlen
+
+    # Call flash attention
+    out = flash_attn_unpadded_qkvpacked_func(qkv, cu_seqlens, max_seqlen, dropout_p=0.0, causal=causal)
+
+    # Reshape output to (batch_size, seq_len, num_heads, head_dim)
+    out = out.view(batch_size, num_heads, seqlen, head_dim).permute(0, 2, 1, 3)
+
+    return out
+
+    # Example usage:
+    batch_size = 2
+    seq_len = 128
+    num_heads = 8
+    head_dim = 64
     
-    def flash_attention(q, k, v, causal=False):
-        """
-        q, k, v: Query, Key, Value tensors with shape (batch_size, seq_len, num_heads, head_dim)
-        Assumes q, k, v are unpadded and packed as required by flash_attn_unpadded_qkvpacked_func.
-    
-        Returns attention output tensor with shape (batch_size, seq_len, num_heads, head_dim)
-        """
-    
-        batch_size, seqlen, num_heads, head_dim = q.shape
-    
-        # Pack Q, K, V into one tensor as expected by flash_attn
-        # The expected shape is (batch_size * num_heads, seq_len, 3 * head_dim)
-        qkv = torch.stack([q, k, v], dim=-1)  # shape: (batch_size, seq_len, num_heads, head_dim, 3)
-        qkv = qkv.permute(0, 2, 1, 4, 3)      # (batch_size, num_heads, seq_len, 3, head_dim)
-        qkv = qkv.reshape(batch_size * num_heads, seqlen, 3 * head_dim)  # packed
-    
-        # Lengths for each sequence (assuming all equal length here)
-        cu_seqlens = torch.arange(0, (batch_size * num_heads + 1) * seqlen, step=seqlen, device=q.device, dtype=torch.int32)
-    
-        max_seqlen = seqlen
-    
-        # Call flash attention
-        out = flash_attn_unpadded_qkvpacked_func(qkv, cu_seqlens, max_seqlen, dropout_p=0.0, causal=causal)
-    
-        # Reshape output to (batch_size, seq_len, num_heads, head_dim)
-        out = out.view(batch_size, num_heads, seqlen, head_dim).permute(0, 2, 1, 3)
-    
-        return out
-    
-        # Example usage:
-        batch_size = 2
-        seq_len = 128
-        num_heads = 8
-        head_dim = 64
-        
-        # Random query, key, value tensors
-        q = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda')
-        k = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda')
-        v = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda')
-    
-        output = flash_attention(q, k, v, causal=True)
-        print(output.shape)  # Expected: (batch_size, seq_len, num_heads, head_dim)
+    # Random query, key, value tensors
+    q = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda')
+    k = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda')
+    v = torch.randn(batch_size, seq_len, num_heads, head_dim, device='cuda')
+
+    output = flash_attention(q, k, v, causal=True)
+    print(output.shape)  # Expected: (batch_size, seq_len, num_heads, head_dim)
 
 ```
 
